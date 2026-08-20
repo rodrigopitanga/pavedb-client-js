@@ -3,6 +3,12 @@
 
 # Changelog
 
+## 0.1.2 — 2026-08-20
+
+- `default` export condition: `require()` works on Node >= 22
+  (require-of-ESM); `import` remains the path on Node 20.
+
+
 ## 0.1.1 — 2026-08-20
 
 - Ship docs/reference and examples inside the tarball (pavedb-site

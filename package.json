@@ -1,6 +1,6 @@
 {
   "name": "@flowlexi/pavedb-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Minimal TypeScript client for the PaveDB REST API. Zero runtime dependencies, fetch-based.",
   "license": "Apache-2.0",
   "author": "Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>",
@@ -10,7 +10,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "files": [
