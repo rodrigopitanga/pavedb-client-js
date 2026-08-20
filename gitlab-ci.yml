@@ -76,18 +76,18 @@ release-tarball:
 publish-npm:
   image: node:22-alpine
   stage: release
-  before_script:
-    - apk add --no-cache git
   needs:
     - job: release-tarball
       artifacts: true
   script:
+    # publish from a git-free dir: npm must not introspect the checkout
+    - mkdir -p /tmp/pub && cp dist/flowlexi-pavedb-client-*.tgz /tmp/pub/
     - |
       {
         echo "@flowlexi:registry=https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
         echo "//gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}"
-      } > .npmrc
-    - npm publish dist/flowlexi-pavedb-client-*.tgz --userconfig .npmrc
+      } > /tmp/pub/.npmrc
+    - cd /tmp/pub && npm publish flowlexi-pavedb-client-*.tgz --userconfig .npmrc
   <<: *stable-tag
 
 release-notes:
