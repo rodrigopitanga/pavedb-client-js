@@ -111,3 +111,89 @@ describe("route contract", () => {
     expect(new PaveDBError(500, "x", "y").code).toBe("x");
   });
 });
+
+describe("behavior", () => {
+  it("normalizes trailing slashes off the base url", async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test///",
+      apiKey: "k",
+      fetchImpl,
+    });
+    await client.health();
+    expect(calls[0]).toBe("http://pavedb.test/health");
+  });
+
+  it("metrics returns raw prometheus text, not JSON", async () => {
+    const body = "# HELP pavedb_up 1\npavedb_up 1\n";
+    const fetchImpl = (async () =>
+      new Response(body, { status: 200 })) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+    });
+    expect(await client.metrics()).toBe(body);
+  });
+
+  it("version falls back to openapi info when /health lacks it", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/health") return new Response('{"ok":true}');
+      if (path === "/openapi.json")
+        return new Response('{"info":{"version":"9.9.9"}}');
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+    });
+    expect(await client.version()).toBe("9.9.9");
+  });
+
+  it("tolerates a non-JSON success body", async () => {
+    const fetchImpl = (async () =>
+      new Response("plain text", { status: 200 })) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+    });
+    expect(await client.health()).toBeNull();
+  });
+
+  it("wraps a non-JSON error body with the http status", async () => {
+    const fetchImpl = (async () =>
+      new Response("<html>bad gateway</html>", { status: 502 })) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+    });
+    await expect(client.health()).rejects.toMatchObject({
+      status: 502,
+      code: "http_error",
+    });
+  });
+
+  it("aborts when the timeout elapses", async () => {
+    const fetchImpl = (async (_: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(init.signal?.reason ?? new Error("aborted")),
+        );
+      })) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+      timeoutMs: 20,
+    });
+    await expect(client.health()).rejects.toThrow();
+  });
+});

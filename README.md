@@ -14,8 +14,11 @@ prefix, unversioned `/health`).
 npm install @flowlexi/pavedb-client
 ```
 
-The package is published to the GitLab npm registry of this project.
-Point the `@flowlexi` scope there once per project:
+Works with plain JavaScript (`import` on Node >= 20, `require` on
+Node >= 22) — the TypeScript types come along for free.
+
+Every release is also published to this project's GitLab npm registry;
+to install from there instead, point the scope at it:
 
 ```sh
 echo "@flowlexi:registry=https://gitlab.com/api/v4/projects/85574851/packages/npm/" >> .npmrc
@@ -48,8 +51,9 @@ make docs-check   # generated reference must be committed fresh
 make release      # changelog + tarball; tag v<version> to publish
 ```
 
-`VERSION` lives in package.json only. CI publishes to the GitLab npm
-registry from a stable `vX.Y.Z` tag and mirrors the repo to GitHub.
+`VERSION` lives in package.json only. CI publishes to npmjs and to the
+GitLab npm registry from a stable `vX.Y.Z` tag and mirrors the repo to
+GitHub.
 
 ## License
 

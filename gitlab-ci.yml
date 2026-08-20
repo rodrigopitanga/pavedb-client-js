@@ -90,6 +90,26 @@ publish-npm:
     - cd /tmp/pub && npm publish flowlexi-pavedb-client-*.tgz --userconfig .npmrc
   <<: *stable-tag
 
+publish-npmjs:
+  # Rule includes $NPM_TOKEN: the job only exists once the token variable
+  # is set on the project — until then tags publish to GitLab only.
+  image: node:22-alpine
+  stage: release
+  needs:
+    - job: release-tarball
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d{1,4}\.\d{1,4}\.\d{1,4}$/ && $NPM_TOKEN'
+  script:
+    - mkdir -p /tmp/pub && cp dist/flowlexi-pavedb-client-*.tgz /tmp/pub/
+    - |
+      {
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
+      } > /tmp/pub/.npmrc
+    - cd /tmp/pub && npm publish flowlexi-pavedb-client-*.tgz \
+        --access public --registry https://registry.npmjs.org \
+        --userconfig .npmrc
+
 release-notes:
   image: alpine:3.20
   stage: release

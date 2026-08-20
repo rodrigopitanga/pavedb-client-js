@@ -18,7 +18,8 @@ SHELL := $(shell command -v bash)
 VERSION := $(shell node -p "require('./package.json').version")
 
 .PHONY: help test docs docs-check bump changelog changelog-write \
-        release-tag-check release-tarball release-tarball-check release clean
+        release-tag-check release-tarball release-tarball-check \
+        publish-npmjs-check release clean
 
 help:
 	@grep -E '^[a-z-]+:' Makefile | cut -d: -f1 | sort | column
@@ -58,6 +59,10 @@ release-tarball-check: release-tarball
 	@tar -tzf "dist/flowlexi-pavedb-client-$(VERSION).tgz" | \
 	  grep -q "package/dist/index.js" || \
 	  { echo "tarball misses dist/index.js"; exit 1; }
+
+publish-npmjs-check: release-tarball-check
+	npm publish "dist/flowlexi-pavedb-client-$(VERSION).tgz" \
+	  --access public --registry https://registry.npmjs.org --dry-run
 
 release: changelog-write release-tarball-check
 	@echo "ready: dist/flowlexi-pavedb-client-$(VERSION).tgz — tag v$(VERSION) to publish"
