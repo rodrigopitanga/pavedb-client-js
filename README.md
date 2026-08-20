@@ -18,7 +18,7 @@ The package is published to the GitLab npm registry of this project.
 Point the `@flowlexi` scope there once per project:
 
 ```sh
-echo "@flowlexi:registry=https://gitlab.com/api/v4/projects/PROJECT_ID/packages/npm/" >> .npmrc
+echo "@flowlexi:registry=https://gitlab.com/api/v4/projects/85574851/packages/npm/" >> .npmrc
 ```
 
 ## Use

@@ -3,6 +3,13 @@
 
 # Changelog
 
+## 0.1.1 — 2026-08-20
+
+- Ship docs/reference and examples inside the tarball (pavedb-site
+  ingests client releases from the published artifact).
+- Declare the Node >= 20 engine; real project id in the README.
+
+
 ## 0.1.0 — 2026-08-20
 
 - Extracted from the flowlexi-console workspace as a standalone package.
