@@ -22,4 +22,7 @@ surface is tracked here.
 - Contract tests against a real PaveDB container in CI, like the
   examples job planned for the siblings (pavedb P1-66).
 - GitHub mirror repo `rodrigopitanga/pavedb-client-ts` + first release
-  announce.
+  announce. Owner action: create the repo on GitHub and make sure the
+  fine-grained GITHUB_MIRROR_TOKEN covers it; then drop the
+  `allow_failure` flags from mirror-github/announce-github in
+  gitlab-ci.yml (the token cannot create repos — probed 2026-08-20).
