@@ -14,6 +14,7 @@ stages:
 mirror-github:
   image: alpine:3.20
   stage: mirror
+  allow_failure: true
   variables:
     GITHUB_MIRROR_REPO: rodrigopitanga/pavedb-client-js
   before_script:
@@ -149,6 +150,7 @@ announce-gitlab:
 announce-github:
   image: alpine:3.20
   stage: announce
+  allow_failure: true
   needs:
     - job: mirror-github
     - job: publish-npm
