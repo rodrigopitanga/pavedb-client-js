@@ -1,12 +1,12 @@
 <!-- (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com> -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# PaveDB TypeScript Client
+# PaveDB JavaScript / TypeScript Client
 
-Minimal TypeScript client for the [PaveDB](https://pavedb.org) REST API.
-Zero runtime dependencies, `fetch`-based, works in Node >= 20 and any
-runtime with WHATWG `fetch`. Routes match PaveDB >= 0.9.x (`/v1` API
-prefix, unversioned `/health`).
+Minimal JavaScript / TypeScript client for the
+[PaveDB](https://pavedb.org) REST API. Zero runtime dependencies,
+`fetch`-based, works in Node >= 20 and any runtime with WHATWG `fetch`.
+Routes match PaveDB >= 0.9.x (`/v1` API prefix, unversioned `/health`).
 
 ## Install
 

@@ -1,3 +1,6 @@
+// (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // Example 3 — the store is inspectable: list what it holds, then clean up.
 import { PaveDBClient } from "../dist/index.js";
 

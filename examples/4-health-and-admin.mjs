@@ -1,3 +1,6 @@
+// (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // Example 4 — operating surface: health, metrics, tenants. The admin
 // calls need the INSTANCE admin key, not a tenant key.
 import { PaveDBClient } from "../dist/index.js";

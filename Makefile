@@ -1,7 +1,7 @@
 # (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-# PaveDB TypeScript Client — Makefile
+# PaveDB JavaScript / TypeScript Client — Makefile
 #
 # Basic usage:
 #   make test                    # typecheck + unit/contract tests
@@ -59,9 +59,12 @@ release-tarball-check: release-tarball
 	@tar -tzf "dist/flowlexi-pavedb-client-$(VERSION).tgz" | \
 	  grep -q "package/dist/index.js" || \
 	  { echo "tarball misses dist/index.js"; exit 1; }
+	@! tar -tzf "dist/flowlexi-pavedb-client-$(VERSION).tgz" | \
+	  grep -qE '^package/dist/.*\.tgz$$' || \
+	  { echo "tarball contains a nested package tarball"; exit 1; }
 
 publish-npmjs-check: release-tarball-check
-	npm publish "dist/flowlexi-pavedb-client-$(VERSION).tgz" \
+	npm publish "./dist/flowlexi-pavedb-client-$(VERSION).tgz" \
 	  --access public --registry https://registry.npmjs.org --dry-run
 
 release: changelog-write release-tarball-check

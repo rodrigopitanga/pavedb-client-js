@@ -1,3 +1,6 @@
+// (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // Minimal PaveDB REST client (admin + health surface used by the console).
 // Zero dependencies, fetch-based, extractable to its own repo/package.
 // Routes match PaveDB >= 0.9.x (`/v1` API prefix, unversioned /health).

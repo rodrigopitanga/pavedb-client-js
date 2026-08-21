@@ -1,3 +1,6 @@
+// (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // Example 2 — metadata on ingest, filters on search.
 import { PaveDBClient } from "../dist/index.js";
 

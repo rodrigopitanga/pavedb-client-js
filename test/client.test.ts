@@ -1,3 +1,6 @@
+// (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // Contract table: every public method must hit the documented PaveDB
 // route with the documented HTTP method. This is the test that catches
 // method/path drift against the core (`/v1` on PaveDB >= 0.9.x) — the
