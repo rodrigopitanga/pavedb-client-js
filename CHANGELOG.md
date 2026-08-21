@@ -1,6 +1,13 @@
 <!-- (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com> -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+## 0.1.3 — 2026-08-21
+
+### Infrastructure
+- Rename the JavaScript client and ready npmjs release
+
+---
+
 # Changelog
 
 ## 0.1.2 — 2026-08-20
