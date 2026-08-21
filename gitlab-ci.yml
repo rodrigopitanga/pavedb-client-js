@@ -62,14 +62,19 @@ release-tarball:
     - apk add --no-cache bash make git
   script:
     - npm ci
-    - make release-tag-check
+    - test -z "${CI_COMMIT_TAG:-}" || make release-tag-check
     - make release-tarball-check
   artifacts:
     paths:
       - dist/*.tgz
       - docs/reference/api.md
     expire_in: never
-  <<: *stable-tag
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d{1,4}\.\d{1,4}\.\d{1,4}$/'
+    - if: >-
+        $CI_PIPELINE_SOURCE == "web" &&
+        $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH &&
+        $NPMJS_PUBLISH == "true"
 
 publish-npm:
   image: node:22-alpine
@@ -89,7 +94,7 @@ publish-npm:
   <<: *stable-tag
 
 publish-npmjs:
-  # The protected token is available only to the protected v* release tags.
+  # The protected token is available only to protected tags and main.
   image: node:22-alpine
   stage: release
   needs:
@@ -97,6 +102,11 @@ publish-npmjs:
       artifacts: true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d{1,4}\.\d{1,4}\.\d{1,4}$/ && $NPM_TOKEN'
+    - if: >-
+        $CI_PIPELINE_SOURCE == "web" &&
+        $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH &&
+        $NPMJS_PUBLISH == "true" && $NPM_TOKEN
+      when: manual
   script:
     - mkdir -p /tmp/pub && cp dist/flowlexi-pavedb-client-*.tgz /tmp/pub/
     - |
