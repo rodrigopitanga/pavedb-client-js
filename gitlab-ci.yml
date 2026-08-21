@@ -103,8 +103,11 @@ publish-npmjs:
       {
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
       } > /tmp/pub/.npmrc
-    - cd /tmp/pub && npm publish flowlexi-pavedb-client-*.tgz \
-        --access public --registry https://registry.npmjs.org \
+    - |
+      cd /tmp/pub
+      npm publish flowlexi-pavedb-client-*.tgz \
+        --access public \
+        --registry https://registry.npmjs.org \
         --userconfig .npmrc
 
 release-notes:
