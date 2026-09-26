@@ -14,6 +14,10 @@ surface is tracked here.
   `chunks` and `chunks/content`, `documents:batch`, single-document
   get/delete, collection `move` and PATCH, archive PUT,
   `/v1/embedders/{tenant}`, global `/v1/search`.
+- PaveDB 0.9.7 routes: collection archive GET/POST/PUT (admin and
+  self-service) and reindex jobs (start, get, cancel, pause/resume).
+- `createCollection` options: add the 0.9.7 fields `embedder`,
+  `search_mode`, `chunking`, `priority_key`.
 - Typed responses: most methods return `Promise<unknown>`; type the
   payloads against the core OpenAPI (P1-69-adjacent: versioned docs for
   pavedb-site come from the same shapes).
