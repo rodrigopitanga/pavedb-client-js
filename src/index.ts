@@ -1,9 +1,7 @@
 // (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>
 // SPDX-License-Identifier: Apache-2.0
 
-// Minimal PaveDB REST client (admin + health surface used by the console).
-// Zero dependencies, fetch-based, extractable to its own repo/package.
-// Routes match PaveDB >= 0.9.x (`/v1` API prefix, unversioned /health).
+// Minimal, fetch-based client for the covered PaveDB 0.9.7 routes.
 
 export interface PaveDBClientOptions {
   baseUrl: string;
@@ -11,6 +9,162 @@ export interface PaveDBClientOptions {
   apiKey: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+}
+
+export interface TraceResponse {
+  ok?: true;
+  request_id?: string | null;
+  latency_ms?: number | null;
+}
+
+export interface HealthResponse {
+  ok: boolean;
+  status: "ready" | "degraded";
+  version: string;
+  request_id?: string | null;
+  latency_ms?: number | null;
+}
+
+export interface ListTenantsResponse extends TraceResponse {
+  tenants: string[];
+  count: number;
+}
+
+export interface EmbedderInventoryEntry {
+  key: string;
+  vector_key: string;
+  embedder_type: string;
+  embed_model: string;
+}
+
+export interface EmbedderInventoryResponse extends TraceResponse {
+  embedders: EmbedderInventoryEntry[];
+  default: {
+    selector?: string | null;
+    vector_key: string;
+    instance_keys: string[];
+  };
+  count: number;
+  tenant?: string | null;
+}
+
+export interface CollectionSummary {
+  name: string;
+  display_name?: string | null;
+  embedder_label?: string | null;
+  vector_space_key?: string | null;
+}
+
+export interface ListCollectionsResponse extends TraceResponse {
+  tenant: string;
+  collections: CollectionSummary[];
+  count: number;
+}
+
+export type SearchMode = "vector" | "boost" | "hybrid";
+
+export type CreateCollectionOptions = {
+  display_name?: string;
+  search_mode?: SearchMode;
+  chunking?: {
+    strategy?: "fixed" | "none";
+    size?: number;
+    overlap?: number;
+  };
+  priority_key?: string;
+} & (
+  | {
+      /** Configured selector; cannot be combined with detailed fields. */
+      embedder?: string;
+      embed_model?: never;
+      embedder_type?: never;
+      embedder_config?: never;
+    }
+  | {
+      embedder?: never;
+      embed_model?: string;
+      embedder_type?: string;
+      embedder_config?: Record<string, unknown>;
+    }
+);
+
+export interface CreateCollectionResponse extends TraceResponse {
+  tenant: string;
+  name: string;
+  collection: string;
+  display_name: string;
+  embedder_type: string;
+  embed_model: string;
+  embedder_config?: Record<string, unknown>;
+  search_mode?: SearchMode;
+  chunking?: Record<string, unknown> | null;
+  priority_key?: string;
+}
+
+export interface DeleteCollectionResponse extends TraceResponse {
+  tenant: string;
+  deleted: string;
+}
+
+export type DocumentInput = {
+  docid?: string;
+  metadata?: Record<string, unknown>;
+} & ({ text: string; vector?: never } | { vector: number[]; text?: never });
+
+export interface IngestDocumentResponse extends TraceResponse {
+  tenant: string;
+  collection: string;
+  docid: string;
+  chunks: number;
+}
+
+export interface DocumentSummary {
+  docid: string;
+  version: number;
+  ingested_at: string;
+  chunk_count: number;
+}
+
+export interface ListDocumentsResponse extends TraceResponse {
+  tenant: string;
+  collection: string;
+  documents: DocumentSummary[];
+  count: number;
+}
+
+export type SearchBody = {
+  k?: number;
+  filters?: Record<string, unknown>;
+  content_filter?: {
+    op: "exact" | "phrase" | "prefix" | "contains";
+    value: string;
+  };
+  mode?: SearchMode;
+  include_common?: boolean;
+} & ({ q: string; v?: never } | { v: number[]; q?: never });
+
+export interface SearchResult {
+  id: string;
+  score: number;
+  text: string | null;
+  tenant: string;
+  collection: string;
+  meta: Record<string, unknown>;
+  match_reason: string;
+}
+
+export interface SearchResponse extends TraceResponse {
+  matches: SearchResult[];
+  mode?: SearchMode | null;
+  query_id?: string | null;
+  timing?: {
+    embed_ms: number;
+    search_ms: number;
+    filter_ms: number;
+    hydrate_ms: number;
+    vector_search_ms?: number | null;
+    lexical_search_ms?: number | null;
+  } | null;
 }
 
 export class PaveDBError extends Error {
@@ -37,12 +191,11 @@ export class PaveDBClient {
     this.timeoutMs = opts.timeoutMs ?? 15_000;
   }
 
-  /** Raw request: returns the response body as text (e.g. /metrics). */
-  private async rawRequest(
+  private async fetchResponse(
     method: string,
     path: string,
     body?: unknown,
-  ): Promise<string> {
+  ): Promise<Response> {
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
       headers: {
@@ -52,11 +205,14 @@ export class PaveDBClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(this.timeoutMs),
     });
-    const text = await res.text();
     if (!res.ok) {
+      const text = await res.text();
       let err: { code?: string; error?: string } = {};
       try {
-        err = JSON.parse(text) as { code?: string; error?: string };
+        const parsed: unknown = JSON.parse(text);
+        if (parsed && typeof parsed === "object") {
+          err = parsed as { code?: string; error?: string };
+        }
       } catch {
         /* non-JSON error body */
       }
@@ -66,7 +222,7 @@ export class PaveDBClient {
         err.error ?? `${method} ${path} failed with ${res.status}`,
       );
     }
-    return text;
+    return res;
   }
 
   private async request<T>(
@@ -74,74 +230,49 @@ export class PaveDBClient {
     path: string,
     body?: unknown,
   ): Promise<T> {
-    const text = await this.rawRequest(method, path, body);
-    let json: unknown = null;
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      /* non-JSON success body */
-    }
-    return json as T;
+    return (await this.fetchResponse(method, path, body)).json() as Promise<T>;
   }
 
   // --- health / ops ---
-  health(): Promise<{ status: string }> {
+  health(): Promise<HealthResponse> {
     return this.request("GET", "/health");
   }
 
-  /** Prometheus exposition text — NOT JSON. */
+  /** Prometheus exposition text, not JSON. */
   metrics(): Promise<string> {
-    return this.rawRequest("GET", "/metrics");
+    return this.fetchResponse("GET", "/metrics").then((res) => res.text());
   }
 
-  /** Server version: /health carries it and is always on; the OpenAPI
-   *  document is the fallback (docs may be disabled in production). */
+  /** Server version from the always-on health endpoint. */
   async version(): Promise<string> {
-    try {
-      const h = await this.request<{ version?: string } | null>(
-        "GET",
-        "/health",
-      );
-      if (h?.version) return h.version;
-    } catch {
-      /* fall through to openapi */
-    }
-    const spec = await this.request<{ info?: { version?: string } } | null>(
-      "GET",
-      "/openapi.json",
-    );
-    return spec?.info?.version ?? "unknown";
+    const health = await this.request<HealthResponse>("GET", "/health");
+    return health.version;
   }
 
   // --- admin surface (requires admin key) ---
-  listTenants(): Promise<{ tenants: string[] }> {
+  listTenants(): Promise<ListTenantsResponse> {
     return this.request("GET", "/v1/admin/tenants");
   }
 
-  listEmbedders(): Promise<unknown> {
+  listEmbedders(): Promise<EmbedderInventoryResponse> {
     return this.request("GET", "/v1/admin/embedders");
   }
 
-  getArchive(): Promise<unknown> {
-    return this.request("GET", "/v1/admin/archive");
+  /** ZIP response; inspect X-PaveDB-Skipped-Collections before using it. */
+  getArchive(): Promise<Response> {
+    return this.fetchResponse("GET", "/v1/admin/archive");
   }
 
   // --- tenant surface (tenant API key or admin key) ---
-  listCollections(tenantName: string): Promise<unknown> {
+  listCollections(tenantName: string): Promise<ListCollectionsResponse> {
     return this.request("GET", `/v1/collections/${enc(tenantName)}`);
   }
 
   createCollection(
     tenantName: string,
     name: string,
-    options?: {
-      display_name?: string;
-      embed_model?: string;
-      embedder_type?: string;
-      embedder_config?: Record<string, unknown>;
-    },
-  ): Promise<unknown> {
-    // core accepts POST (201) on this path; PUT is 405
+    options?: CreateCollectionOptions,
+  ): Promise<CreateCollectionResponse> {
     return this.request(
       "POST",
       `/v1/collections/${enc(tenantName)}/${enc(name)}`,
@@ -149,7 +280,10 @@ export class PaveDBClient {
     );
   }
 
-  deleteCollection(tenantName: string, name: string): Promise<unknown> {
+  deleteCollection(
+    tenantName: string,
+    name: string,
+  ): Promise<DeleteCollectionResponse> {
     return this.request(
       "DELETE",
       `/v1/collections/${enc(tenantName)}/${enc(name)}`,
@@ -159,8 +293,8 @@ export class PaveDBClient {
   addDocument(
     tenantName: string,
     collection: string,
-    body: { content: string; metadata?: Record<string, unknown> },
-  ): Promise<unknown> {
+    body: DocumentInput,
+  ): Promise<IngestDocumentResponse> {
     return this.request(
       "POST",
       `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents`,
@@ -171,15 +305,14 @@ export class PaveDBClient {
   listDocuments(
     tenantName: string,
     collection: string,
-    limit = 20,
-  ): Promise<unknown> {
+  ): Promise<ListDocumentsResponse> {
     return this.request(
       "GET",
-      `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents?limit=${limit}`,
+      `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents`,
     );
   }
 
-  /** Admin-key counters + hardware snapshot (/health/metrics). */
+  /** Admin-key counters and hardware snapshot. */
   metricsSnapshot(): Promise<Record<string, unknown>> {
     return this.request("GET", "/health/metrics");
   }
@@ -187,8 +320,8 @@ export class PaveDBClient {
   search(
     tenantName: string,
     collection: string,
-    body: Record<string, unknown>,
-  ): Promise<unknown> {
+    body: SearchBody,
+  ): Promise<SearchResponse> {
     return this.request(
       "POST",
       `/v1/collections/${enc(tenantName)}/${enc(collection)}/search`,

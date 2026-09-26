@@ -1,6 +1,29 @@
 <!-- (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com> -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+## 0.2.0 — 2026-09-26
+
+### Breaking Changes
+- `addDocument` now takes `{ text, docid?, metadata? }` or a raw
+  `{ vector, docid?, metadata? }`. The old `content` field was rejected by
+  PaveDB 0.9.7.
+- `search` now takes `q` or `v`, with `k` for the hit count. The old
+  `query` and `top_k` fields were ignored by the server.
+- `listDocuments` no longer takes a limit. PaveDB returns the full list
+  and ignored the client's `limit` query parameter.
+- `getArchive` returns the raw ZIP `Response`. Read its body as a stream
+  or `Blob`, and check `X-PaveDB-Skipped-Collections` before relying on it.
+- JSON endpoints now reject malformed success bodies instead of returning
+  `null`; `version` reads the version from `/health` only.
+
+### SDK
+- Add typed request and response shapes for covered PaveDB 0.9.7 routes.
+- Support `embedder`, `search_mode`, `chunking`, and `priority_key` when
+  creating a collection.
+- Correct the runnable examples to use the server's ingest and search fields.
+
+---
+
 ## 0.1.3 — 2026-08-21
 
 ### Infrastructure

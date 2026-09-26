@@ -93,6 +93,23 @@ mapfile -t sorted < <(
 )
 
 entry="## ${VERSION} — $(date +%F)"$'\n'
+# Preserve hand-written breaking notes when refreshing an untagged version.
+notes_source="$CHANGELOG_PATH"
+[[ $notes_source == "-" ]] && notes_source="CHANGELOG.md"
+if [[ -f $notes_source ]]; then
+  breaking_notes="$(awk -v marker="## ${VERSION} — " '
+    index($0, marker) == 1 { in_version = 1; next }
+    in_version && /^## / { exit }
+    in_version && /^### Breaking Changes$/ { in_breaking = 1 }
+    in_breaking && (/^### / && $0 != "### Breaking Changes" || /^---$/) {
+      exit
+    }
+    in_breaking { print }
+  ' "$notes_source")"
+  if [[ -n $breaking_notes ]]; then
+    entry+=$'\n'"${breaking_notes}"$'\n'
+  fi
+fi
 for section in "${sorted[@]}"; do
   entry+=$'\n'"### ${section}"$'\n'"${groups[$section]}"
 done

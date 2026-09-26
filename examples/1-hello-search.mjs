@@ -15,16 +15,16 @@ await db.createCollection(tenant, collection, {
   display_name: "Hello search",
 });
 
-for (const content of [
+for (const text of [
   "PaveDB records every query so you can replay it later.",
   "The sandbox tenant lives on a shared instance and expires in 42 days.",
   "Semantic search matches meaning, not keywords.",
 ]) {
-  await db.addDocument(tenant, collection, { content });
+  await db.addDocument(tenant, collection, { text });
 }
 
 const res = await db.search(tenant, collection, {
-  query: "how do I find things by meaning?",
-  top_k: 2,
+  q: "how do I find things by meaning?",
+  k: 2,
 });
 console.log(JSON.stringify(res, null, 2));

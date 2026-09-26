@@ -6,7 +6,7 @@
 Minimal JavaScript / TypeScript client for the
 [PaveDB](https://pavedb.org) REST API. Zero runtime dependencies,
 `fetch`-based, works in Node >= 20 and any runtime with WHATWG `fetch`.
-Routes match PaveDB >= 0.9.x (`/v1` API prefix, unversioned `/health`).
+Routes match PaveDB 0.9.7 (`/v1` API prefix, unversioned `/health`).
 
 ## Install
 
@@ -34,8 +34,8 @@ const db = new PaveDBClient({
   apiKey: process.env.PAVEDB_API_KEY!,
 });
 
-await db.addDocument("acme", "docs", { content: "PaveDB keeps receipts." });
-const hits = await db.search("acme", "docs", { query: "receipts", top_k: 3 });
+await db.addDocument("acme", "docs", { text: "PaveDB keeps receipts." });
+const hits = await db.search("acme", "docs", { q: "receipts", k: 3 });
 ```
 
 The full surface is in [docs/reference/api.md](docs/reference/api.md)

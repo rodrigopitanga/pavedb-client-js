@@ -56,11 +56,15 @@ describe("route contract", () => {
     ]);
   });
 
-  it("collections: create is POST, never PUT", async () => {
+  it("collections: create is POST with 0.9.7 options", async () => {
     const { client, calls } = capture(200, "{}");
     await client.listCollections("acme");
     await client.createCollection("acme", "docs", {
       display_name: "Docs",
+      embedder: "native",
+      search_mode: "hybrid",
+      chunking: { strategy: "fixed", size: 1000, overlap: 200 },
+      priority_key: "priority",
     });
     await client.deleteCollection("acme", "docs");
     expect(calls.map((c) => [c.method, c.path])).toEqual([
@@ -68,24 +72,55 @@ describe("route contract", () => {
       ["POST", "/v1/collections/acme/docs"],
       ["DELETE", "/v1/collections/acme/docs"],
     ]);
-    expect(calls[1].body).toEqual({ display_name: "Docs" });
+    expect(calls[1].body).toEqual({
+      display_name: "Docs",
+      embedder: "native",
+      search_mode: "hybrid",
+      chunking: { strategy: "fixed", size: 1000, overlap: 200 },
+      priority_key: "priority",
+    });
   });
 
-  it("documents and search", async () => {
+  it("documents and search use the 0.9.7 payloads", async () => {
     const { client, calls } = capture(200, "{}");
-    await client.addDocument("acme", "docs", { content: "hello" });
-    await client.listDocuments("acme", "docs", 5);
-    await client.search("acme", "docs", { query: "hello", top_k: 3 });
+    await client.addDocument("acme", "docs", {
+      text: "hello",
+      docid: "note-1",
+      metadata: { lang: "en" },
+    });
+    await client.addDocument("acme", "docs", { vector: [0.1, 0.2] });
+    await client.listDocuments("acme", "docs");
+    await client.search("acme", "docs", {
+      q: "hello",
+      k: 3,
+      mode: "hybrid",
+      filters: { lang: "en" },
+      content_filter: { op: "phrase", value: "hello" },
+    });
     expect(calls.map((c) => [c.method, c.path])).toEqual([
       ["POST", "/v1/collections/acme/docs/documents"],
-      ["GET", "/v1/collections/acme/docs/documents?limit=5"],
+      ["POST", "/v1/collections/acme/docs/documents"],
+      ["GET", "/v1/collections/acme/docs/documents"],
       ["POST", "/v1/collections/acme/docs/search"],
     ]);
+    expect(calls[0].body).toEqual({
+      text: "hello",
+      docid: "note-1",
+      metadata: { lang: "en" },
+    });
+    expect(calls[1].body).toEqual({ vector: [0.1, 0.2] });
+    expect(calls[3].body).toEqual({
+      q: "hello",
+      k: 3,
+      mode: "hybrid",
+      filters: { lang: "en" },
+      content_filter: { op: "phrase", value: "hello" },
+    });
   });
 
   it("url-encodes tenant and collection names", async () => {
     const { client, calls } = capture(200, "{}");
-    await client.search("a b", "c/d", { query: "x" });
+    await client.search("a b", "c/d", { q: "x" });
     expect(calls[0].path).toBe("/v1/collections/a%20b/c%2Fd/search");
   });
 
@@ -143,23 +178,13 @@ describe("behavior", () => {
     expect(await client.metrics()).toBe(body);
   });
 
-  it("version falls back to openapi info when /health lacks it", async () => {
-    const fetchImpl = (async (input: RequestInfo | URL) => {
-      const path = new URL(String(input)).pathname;
-      if (path === "/health") return new Response('{"ok":true}');
-      if (path === "/openapi.json")
-        return new Response('{"info":{"version":"9.9.9"}}');
-      return new Response("{}", { status: 404 });
-    }) as typeof fetch;
-    const client = new PaveDBClient({
-      baseUrl: "http://pavedb.test",
-      apiKey: "k",
-      fetchImpl,
-    });
-    expect(await client.version()).toBe("9.9.9");
+  it("reads the version from the always-on health endpoint", async () => {
+    const { client, calls } = capture(200, '{"version":"0.9.7"}');
+    expect(await client.version()).toBe("0.9.7");
+    expect(calls.map((c) => c.path)).toEqual(["/health"]);
   });
 
-  it("tolerates a non-JSON success body", async () => {
+  it("rejects a non-JSON success body for a JSON endpoint", async () => {
     const fetchImpl = (async () =>
       new Response("plain text", { status: 200 })) as typeof fetch;
     const client = new PaveDBClient({
@@ -167,7 +192,28 @@ describe("behavior", () => {
       apiKey: "k",
       fetchImpl,
     });
-    expect(await client.health()).toBeNull();
+    await expect(client.health()).rejects.toThrow();
+  });
+
+  it("returns archive bytes and the skipped-collections header", async () => {
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+    const fetchImpl = (async () =>
+      new Response(bytes, {
+        status: 200,
+        headers: {
+          "content-type": "application/zip",
+          "X-PaveDB-Skipped-Collections": "bad-collection",
+        },
+      })) as typeof fetch;
+    const client = new PaveDBClient({
+      baseUrl: "http://pavedb.test",
+      apiKey: "k",
+      fetchImpl,
+    });
+    const response = await client.getArchive();
+    expect(response.headers.get("X-PaveDB-Skipped-Collections"))
+      .toBe("bad-collection");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
   });
 
   it("wraps a non-JSON error body with the http status", async () => {

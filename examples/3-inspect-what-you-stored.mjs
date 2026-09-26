@@ -13,13 +13,13 @@ const collection = `${tenant}-inspect`;
 
 await db.createCollection(tenant, collection);
 await db.addDocument(tenant, collection, {
-  content: "Everything you store, you can see again — and take with you.",
+  text: "Everything you store, you can see again — and take with you.",
 });
 
 console.log("collections:", JSON.stringify(await db.listCollections(tenant)));
 console.log(
   "documents:",
-  JSON.stringify(await db.listDocuments(tenant, collection, 10), null, 2),
+  JSON.stringify(await db.listDocuments(tenant, collection), null, 2),
 );
 
 await db.deleteCollection(tenant, collection);

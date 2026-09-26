@@ -23,7 +23,7 @@ for (const m of src.matchAll(re)) {
   if (!call) continue;
   methods.push({
     name,
-    params: params.replace(/\s+/g, " ").trim(),
+    params: params.replace(/\s+/g, " ").trim().replace(/,\s*$/, ""),
     doc: (doc ?? "").replace(/\s+/g, " ").trim(),
     method: call[1],
     path: call[2].replace(/\$\{enc\((\w+)\)\}/g, "{$1}").replace(/\$\{(\w+)\}/g, "{$1}"),
@@ -45,6 +45,11 @@ const lines = [
   "Construct with `new PaveDBClient({ baseUrl, apiKey })`;",
   "`fetchImpl` and `timeoutMs` are optional. Errors throw `PaveDBError`",
   "with `status`, `code`, and the server message.",
+  "",
+  "PaveDB 0.9.7 expects `addDocument(..., { text })` (or `{ vector }`)",
+  "and `search(..., { q, k })` (or `{ v, k }`). `listDocuments` returns",
+  "the full list. `getArchive` returns the ZIP `Response`; inspect its",
+  "`X-PaveDB-Skipped-Collections` header before using the archive.",
   "",
   "| Method | HTTP route |",
   "|---|---|",

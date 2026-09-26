@@ -16,11 +16,9 @@ surface is tracked here.
   `/v1/embedders/{tenant}`, global `/v1/search`.
 - PaveDB 0.9.7 routes: collection archive GET/POST/PUT (admin and
   self-service) and reindex jobs (start, get, cancel, pause/resume).
-- `createCollection` options: add the 0.9.7 fields `embedder`,
-  `search_mode`, `chunking`, `priority_key`.
-- Typed responses: most methods return `Promise<unknown>`; type the
-  payloads against the core OpenAPI (P1-69-adjacent: versioned docs for
-  pavedb-site come from the same shapes).
+- Type request and response payloads for future parity routes against
+  the core OpenAPI (P1-69-adjacent: versioned docs for pavedb-site come
+  from the same shapes).
 - `documents:batch` in the console playground ingest loop (one
   round-trip instead of N sequential `addDocument` calls).
 - Contract tests against a real PaveDB container in CI, like the

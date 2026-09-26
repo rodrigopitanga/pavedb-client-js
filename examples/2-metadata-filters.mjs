@@ -22,14 +22,14 @@ const policies = [
 ];
 for (const p of policies) {
   await db.addDocument(tenant, collection, {
-    content: p.content,
+    text: p.content,
     metadata: { dept: p.dept },
   });
 }
 
 const res = await db.search(tenant, collection, {
-  query: "what do I get for my home office?",
-  top_k: 3,
+  q: "what do I get for my home office?",
+  k: 3,
   filters: { dept: "hr" },
 });
 console.log(JSON.stringify(res, null, 2));
