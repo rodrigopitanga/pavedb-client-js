@@ -1,6 +1,6 @@
 {
   "name": "@flowlexi/pavedb-client",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Minimal JavaScript / TypeScript client for the PaveDB REST API. Zero runtime dependencies, fetch-based.",
   "license": "Apache-2.0",
   "author": "Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com>",
@@ -37,6 +37,6 @@
     "vitest": "^2.1.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.3"
   }
 }

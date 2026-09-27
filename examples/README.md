@@ -3,12 +3,14 @@
 
 # Examples
 
-Numbered, runnable walkthroughs. Each is a single Node >= 20 script with
+Numbered, runnable walkthroughs. Each is a single Node >= 20.3 script with
 no dependencies beyond the client. Point them at any PaveDB — the free
-sandbox at cloud.flowlexi.com works:
+sandbox at cloud.flowlexi.com works. Copy its instance connection URL from
+the dashboard; hosted PaveDB connections use flxcloud.cc:
+
 
 ```sh
-export PAVEDB_BASE_URL="https://sandbox.pavedb.org"
+export PAVEDB_BASE_URL="https://<instance-slug>-<account>-vector.flxcloud.cc"
 export PAVEDB_API_KEY="pv_..."          # your tenant key
 export PAVEDB_TENANT="your-tenant-name"
 npm ci && npm run build

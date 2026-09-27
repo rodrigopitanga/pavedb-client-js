@@ -1,6 +1,20 @@
 <!-- (C) 2026 Rodrigo Rodrigues da Silva <rodrigo@flowlexi.com> -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+## 0.2.1 — Unreleased
+
+- Add typed collection detail, including optional ingest/reuse totals from
+  PaveDB 0.9.8.
+
+- Add typed batch ingest and document detail methods for Cloud ingestion and
+  metadata inspection.
+- Add `rawRequest` for proxy and binary transport, preserving HTTP status,
+  response headers and streaming bodies. Restrict paths to the configured
+  instance, disable redirects, and combine caller cancellation with timeouts.
+- Require Node >= 20.3 for combined abort signals.
+- Allow public health checks without a key. Explicit authorization overrides
+  the configured bearer key; requests default to `cache: "no-store"`.
+
 ## 0.2.0 — 2026-09-26
 
 ### Breaking Changes

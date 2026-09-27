@@ -5,8 +5,8 @@
 
 export interface PaveDBClientOptions {
   baseUrl: string;
-  /** Bearer token: tenant API key or instance admin key. */
-  apiKey: string;
+  /** Tenant/admin bearer key; omit for public or caller-authenticated requests. */
+  apiKey?: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }
@@ -63,6 +63,28 @@ export interface ListCollectionsResponse extends TraceResponse {
 
 export type SearchMode = "vector" | "boost" | "hybrid";
 
+export interface CollectionDetailResponse extends TraceResponse {
+  tenant: string;
+  name: string;
+  display_name?: string | null;
+  embedder_type?: string | null;
+  embed_model?: string | null;
+  embedder_config: Record<string, unknown>;
+  vector_space_key?: string | null;
+  search_mode: SearchMode;
+  chunking?: Record<string, unknown> | null;
+  priority_key: string;
+  created_at?: string | null;
+  pavedb_version?: string | null;
+  schema_version?: number | null;
+  doc_count: number;
+  chunk_count: number;
+  /** Successful chunk ingestions since PaveDB 0.9.8, including reuse. */
+  chunks_indexed_total?: number;
+  /** Ingested chunks whose current embeddings were reused (PaveDB 0.9.8+). */
+  chunks_reused_total?: number;
+}
+
 export type CreateCollectionOptions = {
   display_name?: string;
   search_mode?: SearchMode;
@@ -116,6 +138,31 @@ export interface IngestDocumentResponse extends TraceResponse {
   collection: string;
   docid: string;
   chunks: number;
+}
+
+export interface BatchIngestDocumentResult {
+  ok: boolean;
+  index: number;
+  docid?: string | null;
+  chunks?: number | null;
+  error?: string | null;
+  code?: string | null;
+}
+
+export interface BatchIngestDocumentsResponse extends TraceResponse {
+  tenant: string;
+  collection: string;
+  documents: BatchIngestDocumentResult[];
+  count: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface GetDocumentResponse extends TraceResponse, DocumentSummary {
+  tenant: string;
+  collection: string;
+  metadata: Record<string, unknown>;
+  chunk_ids: string[];
 }
 
 export interface DocumentSummary {
@@ -180,7 +227,7 @@ export class PaveDBError extends Error {
 
 export class PaveDBClient {
   private baseUrl: string;
-  private apiKey: string;
+  private apiKey?: string;
   private fetchImpl: typeof fetch;
   private timeoutMs: number;
 
@@ -196,14 +243,10 @@ export class PaveDBClient {
     path: string,
     body?: unknown,
   ): Promise<Response> {
-    const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
+    const res = await this.rawRequest(path, {
       method,
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        ...(body !== undefined ? { "content-type": "application/json" } : {}),
-      },
+      headers: body !== undefined ? { "content-type": "application/json" } : {},
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -231,6 +274,30 @@ export class PaveDBClient {
     body?: unknown,
   ): Promise<T> {
     return (await this.fetchResponse(method, path, body)).json() as Promise<T>;
+  }
+
+  /**
+   * Instance-relative HTTP transport for proxies and binary endpoints.
+   * Returns every HTTP status unchanged; only transport failures throw.
+   * Explicit authorization headers override the configured bearer key.
+   */
+  rawRequest(path: string, init: RequestInit = {}): Promise<Response> {
+    if (!path.startsWith("/") || path.startsWith("//") ||
+      /[\\\s#]/.test(path)) {
+      throw new TypeError("Expected an instance-relative path");
+    }
+    const headers = new Headers(init.headers);
+    if (this.apiKey && !headers.has("authorization")) {
+      headers.set("authorization", `Bearer ${this.apiKey}`);
+    }
+    const timeout = AbortSignal.timeout(this.timeoutMs);
+    return this.fetchImpl(`${this.baseUrl}${path}`, {
+      ...init,
+      headers,
+      cache: init.cache ?? "no-store",
+      redirect: "manual",
+      signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
+    });
   }
 
   // --- health / ops ---
@@ -268,6 +335,17 @@ export class PaveDBClient {
     return this.request("GET", `/v1/collections/${enc(tenantName)}`);
   }
 
+  /** Collection settings, live counts, and cumulative ingest/reuse totals. */
+  getCollectionDetail(
+    tenantName: string,
+    name: string,
+  ): Promise<CollectionDetailResponse> {
+    return this.request(
+      "GET",
+      `/v1/collections/${enc(tenantName)}/${enc(name)}/detail`,
+    );
+  }
+
   createCollection(
     tenantName: string,
     name: string,
@@ -299,6 +377,31 @@ export class PaveDBClient {
       "POST",
       `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents`,
       body,
+    );
+  }
+
+  /** Batch ingest with per-document success and error results. */
+  addDocuments(
+    tenantName: string,
+    collection: string,
+    documents: DocumentInput[],
+  ): Promise<BatchIngestDocumentsResponse> {
+    return this.request(
+      "POST",
+      `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents:batch`,
+      { documents },
+    );
+  }
+
+  /** Document metadata and chunk ids, absent from document summaries. */
+  getDocument(
+    tenantName: string,
+    collection: string,
+    docid: string,
+  ): Promise<GetDocumentResponse> {
+    return this.request(
+      "GET",
+      `/v1/collections/${enc(tenantName)}/${enc(collection)}/documents/${enc(docid)}`,
     );
   }
 

@@ -56,6 +56,19 @@ describe("route contract", () => {
     ]);
   });
 
+  it("collection detail preserves counts and supports older servers", async () => {
+    const info = { tenant: "acme", name: "docs", doc_count: 3, chunk_count: 5,
+      chunks_indexed_total: 20, chunks_reused_total: 12 };
+    const { client, calls } = capture(200, JSON.stringify(info));
+    expect(await client.getCollectionDetail("acme/team", "docs")).toEqual(info);
+    expect(calls[0]).toMatchObject({
+      method: "GET", path: "/v1/collections/acme%2Fteam/docs/detail",
+    });
+    const legacy = capture(200, '{"doc_count":3,"chunk_count":5}');
+    expect((await legacy.client.getCollectionDetail("acme", "docs"))
+      .chunks_reused_total).toBeUndefined();
+  });
+
   it("collections: create is POST with 0.9.7 options", async () => {
     const { client, calls } = capture(200, "{}");
     await client.listCollections("acme");
@@ -127,7 +140,7 @@ describe("route contract", () => {
   it("sends the bearer key on every call", async () => {
     let auth: string | null = null;
     const fetchImpl = (async (_: RequestInfo | URL, init?: RequestInit) => {
-      auth = (init?.headers as Record<string, string>).authorization;
+      auth = new Headers(init?.headers).get("authorization");
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
     const client = new PaveDBClient({
@@ -244,5 +257,93 @@ describe("behavior", () => {
       timeoutMs: 20,
     });
     await expect(client.health()).rejects.toThrow();
+  });
+});
+
+
+describe("console transport and document contracts", () => {
+  it("gets document metadata and sends batch text/vector inputs", async () => {
+    const { client, calls } = capture(200, "{}");
+    await client.getDocument("a b", "c/d", "doc/1");
+    const documents = [
+      { text: "hello", metadata: { source: "notes" } },
+      { vector: [0.1, 0.2], docid: "vector-1" },
+    ];
+    await client.addDocuments("a b", "c/d", documents);
+    expect(calls).toEqual([
+      { method: "GET", path: "/v1/collections/a%20b/c%2Fd/documents/doc%2F1" },
+      {
+        method: "POST", path: "/v1/collections/a%20b/c%2Fd/documents:batch",
+        body: { documents },
+      },
+    ]);
+  });
+
+  it("preserves raw bytes, caller auth, query and HTTP errors", async () => {
+    let received: RequestInit | undefined;
+    let url: string | undefined;
+    const response = new Response(new Uint8Array([80, 75, 3, 4]), {
+      status: 429,
+      headers: { "retry-after": "60", "content-type": "application/zip" },
+    });
+    const client = new PaveDBClient({
+      baseUrl: "https://pavedb.test", apiKey: "default-key",
+      fetchImpl: (async (input, init) => {
+        url = String(input);
+        received = init;
+        return response;
+      }) as typeof fetch,
+    });
+    const bytes = new Uint8Array([80, 75, 3, 4]);
+    const result = await client.rawRequest("/v1/archive?restore=true", {
+      method: "PUT", body: bytes,
+      headers: { authorization: "Bearer caller-key" },
+    });
+    expect(result).toBe(response);
+    expect(result.status).toBe(429);
+    expect(result.headers.get("retry-after")).toBe("60");
+    expect(new Uint8Array(await result.arrayBuffer())).toEqual(bytes);
+    expect(url).toBe("https://pavedb.test/v1/archive?restore=true");
+    expect(received?.body).toBe(bytes);
+    expect(new Headers(received?.headers).get("authorization"))
+      .toBe("Bearer caller-key");
+    expect(new Headers(received?.headers).has("content-type")).toBe(false);
+    expect(received?.redirect).toBe("manual");
+    expect(received?.cache).toBe("no-store");
+  });
+
+  it("omits credentials for public health", async () => {
+    const client = new PaveDBClient({
+      baseUrl: "https://pavedb.test",
+      fetchImpl: (async (_input, init) => {
+        expect(new Headers(init?.headers).has("authorization")).toBe(false);
+        return Response.json({ ok: true, version: "0.9.7", status: "ready" });
+      }) as typeof fetch,
+    });
+    expect((await client.health()).ok).toBe(true);
+  });
+
+  it.each([
+    "https://elsewhere.test", "//elsewhere.test/path", "relative/path",
+    "/\\elsewhere.test", "/health\n", "/health#fragment",
+  ])("rejects paths that can escape the instance: %s", (path) => {
+    const { client, calls } = capture();
+    expect(() => client.rawRequest(path)).toThrow(TypeError);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("honors caller cancellation as well as the client timeout", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const client = new PaveDBClient({
+      baseUrl: "https://pavedb.test",
+      fetchImpl: (async (_input, init) => {
+        expect(init?.signal?.aborted).toBe(true);
+        init?.signal?.throwIfAborted();
+        return Response.json({});
+      }) as typeof fetch,
+    });
+    await expect(client.rawRequest("/health", { signal: controller.signal }))
+      .rejects.toThrow();
   });
 });

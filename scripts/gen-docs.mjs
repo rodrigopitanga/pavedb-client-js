@@ -43,7 +43,7 @@ const lines = [
   `# PaveDB JavaScript / TypeScript Client — API reference (v${version})`,
   "",
   "Construct with `new PaveDBClient({ baseUrl, apiKey })`;",
-  "`fetchImpl` and `timeoutMs` are optional. Errors throw `PaveDBError`",
+  "`apiKey`, `fetchImpl` and `timeoutMs` are optional. Errors throw `PaveDBError`",
   "with `status`, `code`, and the server message.",
   "",
   "PaveDB 0.9.7 expects `addDocument(..., { text })` (or `{ vector }`)",

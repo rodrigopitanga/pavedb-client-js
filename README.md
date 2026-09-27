@@ -5,7 +5,7 @@
 
 Minimal JavaScript / TypeScript client for the
 [PaveDB](https://pavedb.org) REST API. Zero runtime dependencies,
-`fetch`-based, works in Node >= 20 and any runtime with WHATWG `fetch`.
+`fetch`-based, works in Node >= 20.3 and any runtime with WHATWG `fetch`.
 Routes match PaveDB 0.9.7 (`/v1` API prefix, unversioned `/health`).
 
 ## Install
@@ -14,7 +14,7 @@ Routes match PaveDB 0.9.7 (`/v1` API prefix, unversioned `/health`).
 npm install @flowlexi/pavedb-client
 ```
 
-Works with plain JavaScript (`import` on Node >= 20, `require` on
+Works with plain JavaScript (`import` on Node >= 20.3, `require` on
 Node >= 22) — the TypeScript types come along for free.
 
 Every release is also published to this project's GitLab npm registry;
@@ -26,17 +26,32 @@ echo "@flowlexi:registry=https://gitlab.com/api/v4/projects/85574851/packages/np
 
 ## Use
 
+Set `PAVEDB_BASE_URL` to the connection URL shown in your Cloud dashboard
+(`https://<instance-slug>-<account>-vector.flxcloud.cc`) or your own server.
+
 ```ts
 import { PaveDBClient } from "@flowlexi/pavedb-client";
 
 const db = new PaveDBClient({
-  baseUrl: "https://sandbox.pavedb.org",
+  baseUrl: process.env.PAVEDB_BASE_URL!,
   apiKey: process.env.PAVEDB_API_KEY!,
 });
 
 await db.addDocument("acme", "docs", { text: "PaveDB keeps receipts." });
 const hits = await db.search("acme", "docs", { q: "receipts", k: 3 });
 ```
+
+`addDocuments(tenant, collection, documents)` ingests a batch and returns
+per-document outcomes. `getDocument(tenant, collection, docid)` includes
+metadata and chunk ids that document summaries omit.
+
+For reverse proxies or binary endpoints, `rawRequest(path, init)` returns the
+original `Response`, including non-success statuses. It accepts only paths
+starting with `/` on the configured instance and never follows redirects.
+Explicit authorization headers override `apiKey`; omit the key for public
+health checks or when forwarding caller credentials. Requests are uncached by
+default, with client timeouts and optional caller cancellation. Typed methods
+continue to throw `PaveDBError` on unsuccessful HTTP responses.
 
 The full surface is in [docs/reference/api.md](docs/reference/api.md)
 (generated — `make docs`). Numbered, runnable walkthroughs live in
