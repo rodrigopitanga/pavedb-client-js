@@ -347,3 +347,31 @@ describe("console transport and document contracts", () => {
       .rejects.toThrow();
   });
 });
+
+
+describe("tenant provisioning", () => {
+  it("maps lifecycle and keys, preserving null inheritance", async () => {
+    const { client, calls } = capture();
+    await client.createTenant("acme", { create_key: false, limits: { max_rpm: 0 } });
+    await client.getTenant("acme");
+    await client.updateTenant("acme", { limits: { max_rpm: null } });
+    await client.createTenantKey("acme", "rotation");
+    await client.listTenantKeys("acme");
+    await client.revokeTenantKey("acme", "key/id");
+    await client.deleteTenant("acme");
+    expect(calls.map(({ method, path }) => [method, path])).toEqual([
+      ["POST", "/v1/admin/tenants"],
+      ["GET", "/v1/admin/tenants/acme"],
+      ["PATCH", "/v1/admin/tenants/acme"],
+      ["POST", "/v1/admin/tenants/acme/keys"],
+      ["GET", "/v1/admin/tenants/acme/keys"],
+      ["DELETE", "/v1/admin/tenants/acme/keys/key%2Fid"],
+      ["DELETE", "/v1/admin/tenants/acme"],
+    ]);
+    expect(calls[0].body).toEqual({
+      tenant: "acme", create_key: false, limits: { max_rpm: 0 },
+    });
+    expect(calls[2].body).toEqual({ limits: { max_rpm: null } });
+    expect(calls[3].body).toEqual({ label: "rotation" });
+  });
+});

@@ -73,3 +73,10 @@ GitHub.
 ## License
 
 Apache-2.0. PaveDB itself is a separate project — see pavedb.org.
+
+## Tenant administration (PaveDB 1.0)
+
+With an admin key, use `createTenant`, `getTenant`, `updateTenant`,
+`deleteTenant`, `createTenantKey`, `listTenantKeys`, and `revokeTenantKey`.
+Generated key plaintext is returned only at creation. Quota overrides accept
+`0` (none), `-1` (unlimited), or `null` (inherit); omitted PATCH fields stay as-is.

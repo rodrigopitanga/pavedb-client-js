@@ -30,6 +30,61 @@ export interface ListTenantsResponse extends TraceResponse {
   count: number;
 }
 
+/** 0 denies, -1 is unlimited, null inherits the instance default. */
+export interface TenantLimits {
+  max_concurrent: number | null;
+  max_rpm: number | null;
+  max_rph: number | null;
+  max_collections: number | null;
+  max_chunks_per_collection: number | null;
+  max_archives_per_day: number | null;
+  max_reindex_per_month: number | null;
+}
+
+export interface UpdateTenantOptions {
+  display_name?: string | null;
+  status?: "active" | "suspended";
+  limits?: Partial<TenantLimits>;
+}
+
+export interface CreateTenantOptions extends UpdateTenantOptions {
+  create_key?: boolean;
+  key_label?: string;
+}
+
+export interface TenantResponse extends TraceResponse {
+  tenant: string;
+  display_name: string | null;
+  status: "active" | "suspended" | "deleted";
+  limits: TenantLimits;
+  effective_limits: { [K in keyof TenantLimits]: number };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TenantKeyResponse extends TraceResponse {
+  id: string;
+  tenant: string;
+  label: string;
+  created_at: string;
+  revoked_at: string | null;
+}
+
+export interface CreatedTenantKeyResponse extends TenantKeyResponse {
+  /** Plaintext bearer token: returned only on creation. */
+  key: string;
+}
+
+export interface CreatedTenantResponse extends TenantResponse {
+  key: CreatedTenantKeyResponse | null;
+}
+
+export interface ListTenantKeysResponse extends TraceResponse {
+  tenant: string;
+  keys: TenantKeyResponse[];
+  count: number;
+}
+
 export interface EmbedderInventoryEntry {
   key: string;
   vector_key: string;
@@ -319,6 +374,51 @@ export class PaveDBClient {
   // --- admin surface (requires admin key) ---
   listTenants(): Promise<ListTenantsResponse> {
     return this.request("GET", "/v1/admin/tenants");
+  }
+
+  /** PaveDB 1.0: provision a tenant and optional initial key atomically. */
+  createTenant(
+    tenantName: string,
+    options: CreateTenantOptions = {},
+  ): Promise<CreatedTenantResponse> {
+    return this.request("POST", "/v1/admin/tenants", {
+      ...options, tenant: tenantName,
+    });
+  }
+
+  getTenant(tenantName: string): Promise<TenantResponse> {
+    return this.request("GET", `/v1/admin/tenants/${enc(tenantName)}`);
+  }
+
+  /** Only supplied fields change; null quota overrides restore inheritance. */
+  updateTenant(
+    tenantName: string,
+    changes: UpdateTenantOptions,
+  ): Promise<TenantResponse> {
+    return this.request("PATCH", `/v1/admin/tenants/${enc(tenantName)}`, changes);
+  }
+
+  /** Delete an empty tenant and revoke its keys; nonempty tenants return 409. */
+  deleteTenant(tenantName: string): Promise<TenantResponse> {
+    return this.request("DELETE", `/v1/admin/tenants/${enc(tenantName)}`);
+  }
+
+  listTenantKeys(tenantName: string): Promise<ListTenantKeysResponse> {
+    return this.request("GET", `/v1/admin/tenants/${enc(tenantName)}/keys`);
+  }
+
+  /** Return the new plaintext key once; no list/read method can recover it. */
+  createTenantKey(
+    tenantName: string,
+    label = "primary",
+  ): Promise<CreatedTenantKeyResponse> {
+    return this.request("POST", `/v1/admin/tenants/${enc(tenantName)}/keys`, { label });
+  }
+
+  revokeTenantKey(tenantName: string, keyId: string): Promise<TenantKeyResponse> {
+    return this.request(
+      "DELETE", `/v1/admin/tenants/${enc(tenantName)}/keys/${enc(keyId)}`,
+    );
   }
 
   listEmbedders(): Promise<EmbedderInventoryResponse> {

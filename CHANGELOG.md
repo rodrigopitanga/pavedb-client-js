@@ -3,6 +3,8 @@
 
 ## 0.2.1 — Unreleased
 
+- Add typed tenant provisioning, live quota, and key lifecycle methods for PaveDB 1.0.
+
 - Add typed collection detail, including optional ingest/reuse totals from
   PaveDB 0.9.8.
 

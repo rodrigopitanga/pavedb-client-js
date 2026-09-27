@@ -19,6 +19,13 @@ the full list. `getArchive` returns the ZIP `Response`; inspect its
 | `metrics()` | `GET /metrics` |
 | `version()` | `GET /health` |
 | `listTenants()` | `GET /v1/admin/tenants` |
+| `createTenant(tenantName: string, options: CreateTenantOptions = {})` | `POST /v1/admin/tenants` |
+| `getTenant(tenantName: string)` | `GET /v1/admin/tenants/{tenantName}` |
+| `updateTenant(tenantName: string, changes: UpdateTenantOptions)` | `PATCH /v1/admin/tenants/{tenantName}` |
+| `deleteTenant(tenantName: string)` | `DELETE /v1/admin/tenants/{tenantName}` |
+| `listTenantKeys(tenantName: string)` | `GET /v1/admin/tenants/{tenantName}/keys` |
+| `createTenantKey(tenantName: string, label = "primary")` | `POST /v1/admin/tenants/{tenantName}/keys` |
+| `revokeTenantKey(tenantName: string, keyId: string)` | `DELETE /v1/admin/tenants/{tenantName}/keys/{keyId}` |
 | `listEmbedders()` | `GET /v1/admin/embedders` |
 | `getArchive()` | `GET /v1/admin/archive` |
 | `listCollections(tenantName: string)` | `GET /v1/collections/{tenantName}` |
@@ -36,6 +43,10 @@ the full list. `getArchive` returns the ZIP `Response`; inspect its
 
 - `metrics` — Prometheus exposition text, not JSON.
 - `version` — Server version from the always-on health endpoint.
+- `createTenant` — PaveDB 1.0: provision a tenant and optional initial key atomically.
+- `updateTenant` — Only supplied fields change; null quota overrides restore inheritance.
+- `deleteTenant` — Delete an empty tenant and revoke its keys; nonempty tenants return 409.
+- `createTenantKey` — Return the new plaintext key once; no list/read method can recover it.
 - `getArchive` — ZIP response; inspect X-PaveDB-Skipped-Collections before using it.
 - `getCollectionDetail` — Collection settings, live counts, and cumulative ingest/reuse totals.
 - `addDocuments` — Batch ingest with per-document success and error results.

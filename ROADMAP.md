@@ -24,3 +24,5 @@ surface is tracked here.
   batch ingestion, metadata discovery, and proxy requests.
 - Contract tests against a real PaveDB container in CI, like the
   examples job planned for the siblings (pavedb P1-66).
+
+- ~~Tenant provisioning and key lifecycle for PaveDB 1.0 (P2-19 / P2-38).~~
